@@ -13,6 +13,7 @@ return {
                     noremap = true,
                     desc = 'Tab terminal'
                 })
+            vim.keymap.set('n', '<leader>`v', ':ToggleTerm direction=vertical size=60<CR>')
         end,
         config = function()
             require('toggleterm').setup()

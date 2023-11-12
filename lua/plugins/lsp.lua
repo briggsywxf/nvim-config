@@ -1,83 +1,92 @@
+-- todo - lspsaga
 return {
     {
-        -- LSP Configuration & Plugins
+        'williamboman/mason.nvim',
+        config = function()
+            require('mason').setup()
+        end
+    },
+    'williamboman/mason-lspconfig.nvim',
+    {
         'neovim/nvim-lspconfig',
         dependencies = {
-            -- Automatically install LSPs to stdpath for neovim
-            'williamboman/mason.nvim',
-            'williamboman/mason-lspconfig.nvim',
-
-            -- Useful status updates for LSP
-            -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
-            { 'j-hui/fidget.nvim', tag = 'legacy', opts = {} },
-
-            -- Additional lua configuration, makes nvim stuff amazing!
-            'folke/neodev.nvim',
+            'mason-lspconfig.nvim',
+            'cmp-nvim-lsp'
         },
-
         config = function()
-            local on_attach = function(_, bufnr)
-                local nmap = function(keys, func, desc)
-                    if desc then
-                        desc = 'LSP: ' .. desc
-                    end
+            local lspconfig = require('lspconfig')
+            local lsp_defaults = lspconfig.util.default_config
 
-                    vim.keymap.set('n', keys, func, { buffer = bufnr, desc = desc })
-                end
+            lsp_defaults.capabilities = vim.tbl_deep_extend(
+                'force',
+                lsp_defaults.capabilities,
+                require('cmp_nvim_lsp').default_capabilities()
+            )
 
-                nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
-                nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
-
-                nmap('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
-                nmap('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
-                nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
-                nmap('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
-                nmap('<leader>D', require('telescope.builtin').lsp_type_definitions, 'Type [D]efinition')
-                nmap('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
-                nmap('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
-
-                -- See `:help K` for why this keymap
-                nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
-                nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
-
-                -- Create :Format command
-                vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
-                    vim.lsp.buf.format()
-                end, { desc = 'Format current buffer with LSP'})
-            end
-
-            require('mason').setup()
-            require('mason-lspconfig').setup()
-
-            local servers = {
-                lua_ls = {
+            lspconfig.lua_ls.setup {
+                settings = {
                     Lua = {
-                        workspace = { checkThirdParty = false },
-                        telemetry = { enable = false }
+                        diagnostics = {
+                            globals = { "vim" },
+                        },
+                        workspace = {
+                            library = {
+                                [vim.fn.expand "$VIMRUNTIME/lua"] = true,
+                                [vim.fn.stdpath "config" .. "/lua"] = true,
+                            },
+                        },
+                    },
+                },
+            }
+
+            vim.api.nvim_create_autocmd('LspAttach', {
+                group = vim.api.nvim_create_augroup('UserLspConfig', {}),
+                callback = function(ev)
+                    -- Buffer local mappings.
+                    -- See `:help vim.lsp.*` for documentation on any of the below functions
+                    local opts = { buffer = ev.buf, noremap = true }
+                    vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, opts)
+                    vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
+                    vim.keymap.set('n', '<C-k>', vim.lsp.buf.hover, opts)
+                    vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, opts)
+                    vim.keymap.set('n', '<space>wa', vim.lsp.buf.add_workspace_folder, opts)
+                    vim.keymap.set('n', '<space>wr', vim.lsp.buf.remove_workspace_folder, opts)
+                    vim.keymap.set('n', '<space>wl', function()
+                        print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
+                    end, opts)
+                    vim.keymap.set('n', '<space>D', vim.lsp.buf.type_definition, opts)
+                    vim.keymap.set('n', '<space>rn', vim.lsp.buf.rename, opts)
+                    vim.keymap.set({ 'n', 'v' }, '<space>ca', vim.lsp.buf.code_action, opts)
+                    vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
+                    vim.keymap.set('n', '<space>f', function()
+                        vim.lsp.buf.format { async = true }
+                    end, opts)
+                end
+            })
+        end
+    },
+    {
+        'simrat39/rust-tools.nvim',
+        config = function()
+            local rt = require('rust-tools')
+            rt.setup {
+                server = {
+                    capabilities = require("cmp_nvim_lsp").default_capabilities(),
+                    on_attach = function(_, bufnr)
+                        vim.keymap.set("n", "<Leader>k", rt.hover_actions.hover_actions, { buffer = bufnr })
+                        vim.keymap.set("n", "<Leader>a", rt.code_action_group.code_action_group, { buffer = bufnr })
+                    end
+                },
+                tools = {
+                    hover_actions = {
+                        auto_focus = true,
+                    },
+                    inlay_hints = {
+                        auto = true,
+                        only_current_line = false,
+                        show_parameter_hints = true,
                     }
                 }
-            }
-
-            require('neodev').setup()
-
-            local capabilities = vim.lsp.protocol.make_client_capabilities()
-            capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
-
-            local mason_lspconfig = require 'mason-lspconfig'
-
-            mason_lspconfig.setup {
-                ensure_installed = vim.tbl_keys(servers)
-            }
-
-            mason_lspconfig.setup_handlers {
-                function(server_name)
-                    require('lspconfig')[server_name].setup {
-                        capabilities = capabilities,
-                        on_attach = on_attach,
-                        settings = servers[server_name],
-                        filetypes = (servers[server_name] or {}).filetypes,
-                    }
-                end
             }
         end
     }

@@ -8,25 +8,29 @@ return {
             'saadparwaiz1/cmp_luasnip',
 
             -- Adds LSP completion capabilities
+            'hrsh7th/nvim-cmp',
             'hrsh7th/cmp-nvim-lsp',
+            'hrsh7th/cmp-vsnip',
+            'hrsh7th/cmp-path',
+            'hrsh7th/cmp-buffer',
 
             -- Adds a number of user-friendly snippets
             'rafamadriz/friendly-snippets',
 
-            
+
         },
         config = function()
             local cmp = require('cmp')
             local luasnip = require('luasnip')
             require('luasnip.loaders.from_vscode').lazy_load()
             luasnip.config.setup {}
- 
+
             local capabilities = vim.lsp.protocol.make_client_capabilities()
             capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
 
             cmp.setup({
                 snippet = {
-                    expand = function(args) 
+                    expand = function(args)
                         luasnip.lsp_expand(args.body)
                     end
                 },
@@ -36,7 +40,7 @@ return {
                     ['<CR>'] = cmp.mapping({
                         i = function(fallback)
                             if cmp.visible() then
-                                cmp.confirm({ behaviour = cmp.ConfirmBehavior.Replace, select = true})
+                                cmp.confirm({ select = true })
                             else
                                 fallback()
                             end
@@ -44,8 +48,13 @@ return {
                     }),
                 }),
                 sources = {
-                    { name = 'nvim_lsp'},
-                    { name = 'luasnip'},
+                    { name = 'nvim_lsp' },
+                    { name = 'nvim_lsp_signature_help' },
+                    { name = 'luasnip' },
+                    { name = 'crates' },
+                    { name = 'path' },
+                    { name = 'buffer' , keyword_length = 2 },
+                    { name = 'calc' }
                 },
             })
         end
